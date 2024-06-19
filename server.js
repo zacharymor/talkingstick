@@ -16,6 +16,11 @@ const io = socketIo(server, {
 
 let broadcaster;
 let viewers = [];
+let voters = [];
+
+const randomViewer = () => {
+    return viewers[Math.floor(Math.random() *(viewers.length+1))];
+};
 
 app.use(express.static(__dirname + '/public'));
 app.use(cors({
@@ -38,6 +43,18 @@ io.on('connection', socket => {
         socket.broadcast.emit('broadcaster');
     });
 
+    socket.on('vote', () => {
+        if (!voters.includes(socket.id)) {
+            voters.push(socket.id);
+        }
+        if (voters.length > (viewers.length/5)){
+            console.log(voters.length)
+            console.log('Rotate');
+            voters = [];
+        }
+        console.log('voters reset to ' + voters.length)
+    });
+
     socket.on('watcher', () => {
         socket.to(broadcaster).emit('watcher', socket.id);
     });
@@ -50,20 +67,29 @@ io.on('connection', socket => {
         socket.to(id).emit('answer', socket.id, message);
     });
 
+    socket.on("rotate", () => {
+        console.log("rototototo");
+        socket.to(randomViewer()).emit('selected');
+    });
+
     socket.on('candidate', (id, message) => {
         socket.to(id).emit('candidate', socket.id, message);
     });
 
     socket.on('disconnect', () => {
+        
         if (socket.id === broadcaster) {
             broadcaster = null;
             io.emit('broadcaster');
         } else {
             viewers = viewers.filter(viewer => viewer !== socket.id);
+            voters = voters.filter(voter => voter !== socket.id);
+
             socket.to(broadcaster).emit('disconnectPeer', socket.id);
         }
         console.log(`${socket.id} disconnected`);
     });
+
 });
 
 server.listen(3000, () => {
