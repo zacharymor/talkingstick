@@ -18,8 +18,8 @@ let broadcaster;
 let viewers = [];
 let voters = [];
 
-const randomViewer = () => {
-    return viewers[Math.floor(Math.random() *(viewers.length+1))];
+const randomViewer = (xcid) => {
+    return viewers.filter(e => e != xcid)[Math.floor(Math.random() *(viewers.length - 1))];
 };
 
 app.use(express.static(__dirname + '/public'));
@@ -29,14 +29,6 @@ app.use(cors({
 
 io.on('connection', socket => {
     console.log(`${socket.id} connected`);
-
-    if (!broadcaster) {
-        broadcaster = socket.id;
-        socket.emit('role', 'broadcaster');
-    } else {
-        viewers.push(socket.id);
-        socket.emit('role', 'viewer');
-    }
 
     socket.on('broadcaster', () => {
         broadcaster = socket.id;
@@ -56,6 +48,8 @@ io.on('connection', socket => {
     });
 
     socket.on('watcher', () => {
+        viewers.push(socket.id);
+        socket.emit('role', 'viewer');
         socket.to(broadcaster).emit('watcher', socket.id);
     });
 
@@ -69,7 +63,7 @@ io.on('connection', socket => {
 
     socket.on("rotate", () => {
         console.log("rototototo");
-        socket.to(randomViewer()).emit('selected');
+        socket.to(randomViewer(socket.id)).emit('selected');
     });
 
     socket.on('candidate', (id, message) => {
